@@ -1,0 +1,6 @@
+my-contact-app/
+├── api/
+│   └── contact.php      # Form handler PHP backend (PostgreSQL PDO)
+├── index.html           # HTML contact form
+├── vercel.json          # Vercel deployment & routing config
+└── .gitignore           # Ignores sensitive environment files
