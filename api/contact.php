@@ -1,66 +1,108 @@
 <?php
-// Set response header to JSON
-header('Content-Type: application/json');
+// Set response headers for JSON output and CORS
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: POST, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type");
+header("Content-Type: application/json; charset=UTF-8");
 
-// Retrieve Supabase database credentials from environment variables set in Vercel
-$host     = getenv('DB_HOST');
-$port     = getenv('DB_PORT') ?: '5432';
-$database = getenv('DB_DATABASE') ?: 'postgres';
-$username = getenv('DB_USERNAME') ?: 'postgres';
-$password = getenv('DB_PASSWORD');
+// Handle preflight OPTIONS request
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
 
-// Check if POST request contains required field
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['txtName'])) {
+// 1. Read environment variables from Vercel / server environment
+$host = getenv('DB_HOST');
+$port = getenv('DB_PORT') ?: '5432';
+$dbname = getenv('DB_NAME');
+$user = getenv('DB_USER');
+$password = getenv('DB_PASS');
 
-    if (!$host || !$password) {
-        http_response_code(500);
-        echo json_encode(["status" => "error", "message" => "Database connection details not configured."]);
-        exit;
+// 2. Validate environment variable existence
+if (!$host || !$dbname || !$user || !$password) {
+    http_response_code(500);
+    echo json_encode([
+        "status" => "error",
+        "message" => "Database connection details not configured."
+    ]);
+    exit();
+}
+
+// 3. Establish PDO PostgreSQL connection
+try {
+    $dsn = "pgsql:host={$host};port={$port};dbname={$dbname};sslmode=require";
+    $pdo = new PDO($dsn, $user, $password, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false
+    ]);
+} catch (PDOException $e) {
+    http_response_code(500);
+    echo json_encode([
+        "status" => "error",
+        "message" => "Database connection failed: " . $e->getMessage()
+    ]);
+    exit();
+}
+
+// 4. Process incoming request payload
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Read JSON payload or form-encoded POST data
+    $rawInput = file_get_contents('php://input');
+    $data = json_decode($rawInput, true);
+
+    $name    = trim($data['name'] ?? $_POST['name'] ?? '');
+    $email   = trim($data['email'] ?? $_POST['email'] ?? '');
+    $subject = trim($data['subject'] ?? $_POST['subject'] ?? '');
+    $message = trim($data['message'] ?? $_POST['message'] ?? '');
+
+    // Validate required fields
+    if (empty($name) || empty($email) || empty($message)) {
+        http_response_code(400);
+        echo json_encode([
+            "status" => "error",
+            "message" => "Please fill in all required fields (name, email, message)."
+        ]);
+        exit();
     }
 
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        http_response_code(400);
+        echo json_encode([
+            "status" => "error",
+            "message" => "Invalid email address format."
+        ]);
+        exit();
+    }
+
+    // 5. Insert submission into PostgreSQL table
     try {
-        // Build PostgreSQL DSN connection string
-        $dsn = "pgsql:host=$host;port=$port;dbname=$database;sslmode=require";
-        
-        // Connect via PDO
-        $pdo = new PDO($dsn, $username, $password, [
-            PDO::ATTR_ERRMODE            => PDO_ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO_FETCH_ASSOC,
-            PDO::ATTR_TIMEOUT            => 10,
-        ]);
-
-        // Get and sanitize POST input records
-        $txtName    = trim($_POST['txtName'] ?? '');
-        $txtEmail   = trim($_POST['txtEmail'] ?? '');
-        $txtPhone   = trim($_POST['txtPhone'] ?? '');
-        $txtMessage = trim($_POST['txtMessage'] ?? '');
-
-        // PostgreSQL INSERT statement
-        $sql = "INSERT INTO tbl_contact (fldName, fldEmail, fldPhone, fldMessage) VALUES (:name, :email, :phone, :message)";
-        
+        $sql = "INSERT INTO contact_form (name, email, subject, message) VALUES (:name, :email, :subject, :message)";
         $stmt = $pdo->prepare($sql);
-        $executed = $stmt->execute([
-            ':name'    => $txtName,
-            ':email'   => $txtEmail,
-            ':phone'   => $txtPhone,
-            ':message' => $txtMessage,
+        $stmt->execute([
+            ':name'    => $name,
+            ':email'   => $email,
+            ':subject' => $subject,
+            ':message' => $message
         ]);
 
-        if ($executed) {
-            http_response_code(200);
-            echo json_encode(["status" => "success", "message" => "Contact Records Inserted Successfully!"]);
-        } else {
-            http_response_code(500);
-            echo json_encode(["status" => "error", "message" => "Failed to insert record."]);
-        }
-
+        http_response_code(200);
+        echo json_encode([
+            "status" => "success",
+            "message" => "Thank you! Your message has been sent."
+        ]);
     } catch (PDOException $e) {
         http_response_code(500);
-        echo json_encode(["status" => "error", "message" => "Database Connection Failed: " . $e->getMessage()]);
+        echo json_encode([
+            "status" => "error",
+            "message" => "Failed to save submission: " . $e->getMessage()
+        ]);
     }
-
 } else {
-    http_response_code(400);
-    echo json_encode(["status" => "error", "message" => "Are you a genuine visitor?"]);
+    http_response_code(405);
+    echo json_encode([
+        "status" => "error",
+        "message" => "Method not allowed. Use POST."
+    ]);
 }
 ?>
