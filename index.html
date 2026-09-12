@@ -6,38 +6,103 @@
     <title>Contact Us</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 40px; background: #f4f4f9; }
-        .form-container { max-width: 450px; background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .form-container { max-width: 450px; background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin: auto; }
         .form-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 5px; font-weight: bold; }
         input, textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
         button { width: 100%; padding: 10px; background: #0070f3; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; }
         button:hover { background: #0051a2; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        
+        /* Response Status Alerts */
+        .alert { padding: 10px; margin-bottom: 15px; border-radius: 4px; display: none; font-size: 14px; }
+        .alert-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .alert-error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
     </style>
 </head>
 <body>
 
 <div class="form-container">
     <h2>Contact Us</h2>
-    <form action="/api/contact.php" method="POST">
+    
+    <!-- Status message banner -->
+    <div id="statusAlert" class="alert"></div>
+
+    <form id="contactForm">
         <div class="form-group">
             <label for="txtName">Name:</label>
-            <input type="text" id="txtName" name="txtName" required>
+            <input type="text" id="txtName" name="name" required>
         </div>
         <div class="form-group">
             <label for="txtEmail">Email:</label>
-            <input type="email" id="txtEmail" name="txtEmail" required>
+            <input type="email" id="txtEmail" name="email" required>
         </div>
         <div class="form-group">
-            <label for="txtPhone">Phone:</label>
-            <input type="text" id="txtPhone" name="txtPhone" required>
+            <label for="txtSubject">Subject:</label>
+            <input type="text" id="txtSubject" name="subject">
         </div>
         <div class="form-group">
             <label for="txtMessage">Message:</label>
-            <textarea id="txtMessage" name="txtMessage" rows="4" required></textarea>
+            <textarea id="txtMessage" name="message" rows="4" required></textarea>
         </div>
-        <button type="submit">Submit</button>
+        <button type="submit" id="submitBtn">Submit</button>
     </form>
 </div>
+
+<script>
+document.getElementById('contactForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const alertBox = document.getElementById('statusAlert');
+    const submitBtn = document.getElementById('submitBtn');
+
+    // Reset alert display
+    alertBox.style.display = 'none';
+    alertBox.className = 'alert';
+    
+    // Disable submit button during processing
+    submitBtn.disabled = true;
+    submitBtn.innerText = 'Sending...';
+
+    // Build JSON payload matching backend keys expected by contact.php
+    const formData = {
+        name: document.getElementById('txtName').value,
+        email: document.getElementById('txtEmail').value,
+        subject: document.getElementById('txtSubject').value,
+        message: document.getElementById('txtMessage').value
+    };
+
+    try {
+        const response = await fetch('/api/contact.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        });
+
+        const result = await response.json();
+
+        alertBox.style.display = 'block';
+        if (response.ok && result.status === 'success') {
+            alertBox.className = 'alert alert-success';
+            alertBox.innerText = result.message || 'Message sent successfully!';
+            document.getElementById('contactForm').reset();
+        } else {
+            alertBox.className = 'alert alert-error';
+            alertBox.innerText = result.message || 'Failed to submit form.';
+        }
+    } catch (error) {
+        alertBox.style.display = 'block';
+        alertBox.className = 'alert alert-error';
+        alertBox.innerText = 'Network error occurred. Please try again.';
+        console.error('Submission Error:', error);
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'Submit';
+    }
+});
+</script>
 
 </body>
 </html>
