@@ -11,24 +11,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-// 1. Read environment variables from Vercel / server environment
+// Enable error reporting for debugging
+ini_set('display_errors', 0);
+error_reporting(E_ALL);
+
+// 1. Read environment variables (supports both naming conventions)
 $host     = getenv('DB_HOST');
 $port     = getenv('DB_PORT') ?: '5432';
-$dbname   = getenv('DB_NAME');
-$user     = getenv('DB_USER');
-$password = getenv('DB_PASS');
+$dbname   = getenv('DB_NAME') ?: getenv('DB_DATABASE');
+$user     = getenv('DB_USER') ?: getenv('DB_USERNAME');
+$password = getenv('DB_PASS') ?: getenv('DB_PASSWORD');
 
 // 2. Validate environment variable existence
 if (!$host || !$dbname || !$user || !$password) {
     http_response_code(500);
     echo json_encode([
         "status"  => "error",
-        "message" => "Database connection details not configured."
+        "message" => "Database connection details not configured in environment variables.",
+        "missing_vars" => [
+            "DB_HOST"     => $host ? "OK" : "MISSING",
+            "DB_NAME"     => $dbname ? "OK" : "MISSING",
+            "DB_USER"     => $user ? "OK" : "MISSING",
+            "DB_PASS"     => $password ? "OK" : "MISSING"
+        ]
     ]);
     exit();
 }
 
-// 3. Establish PDO PostgreSQL connection
+// 3. Check if PostgreSQL PDO extension is loaded
+if (!extension_loaded('pdo_pgsql')) {
+    http_response_code(500);
+    echo json_encode([
+        "status"  => "error",
+        "message" => "The PHP PostgreSQL extension (pdo_pgsql) is not enabled on this server."
+    ]);
+    exit();
+}
+
+// 4. Establish PDO PostgreSQL connection
 try {
     $dsn = "pgsql:host={$host};port={$port};dbname={$dbname};sslmode=require";
     $pdo = new PDO($dsn, $user, $password, [
@@ -40,12 +60,13 @@ try {
     http_response_code(500);
     echo json_encode([
         "status"  => "error",
-        "message" => "Database connection failed: " . $e->getMessage()
+        "message" => "Database connection failed",
+        "details" => $e->getMessage()
     ]);
     exit();
 }
 
-// 4. Process incoming request payload
+// 5. Process incoming request payload
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Read JSON payload or form-encoded POST data
     $rawInput = file_get_contents('php://input');
@@ -75,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit();
     }
 
-    // 5. Insert submission into PostgreSQL table
+    // 6. Insert submission into PostgreSQL table
     try {
         $sql  = "INSERT INTO contact_form (name, email, subject, message) VALUES (:name, :email, :subject, :message)";
         $stmt = $pdo->prepare($sql);
