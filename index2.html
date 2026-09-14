@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Welcome Ankit</title>
+  <title>WELCOME</title>
   <style>
     :root {
       --bg-color: #0f172a;
@@ -147,6 +147,25 @@
       color: var(--text-main);
     }
 
+    .ip-details {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    .ip-details div {
+      display: flex;
+      justify-content: space-between;
+      color: var(--text-muted);
+    }
+
+    .ip-details span {
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
     .btn-group {
       display: flex;
       gap: 1rem;
@@ -211,6 +230,18 @@
         <h3>Client Time</h3>
         <div class="value" id="clock">--:--:--</div>
       </div>
+
+      <!-- VISITOR IP BLOCK START -->
+      <div class="card">
+        <h3>Visitor Network Details</h3>
+        <div class="value" id="ipAddress" style="color: var(--accent-blue); font-size: 1.25rem;">Fetching IP...</div>
+        <div class="ip-details">
+          <div>Location: <span id="ipLocation">Detecting...</span></div>
+          <div>ISP / Org: <span id="ipOrg">Detecting...</span></div>
+          <div>Browser: <span id="userBrowser">Detecting...</span></div>
+        </div>
+      </div>
+      <!-- VISITOR IP BLOCK END -->
     </section>
 
     <section class="card">
@@ -224,7 +255,7 @@
 
   <footer>
     <p>CI/CD Deployment Test Page &bull; Single-file HTML/CSS/JS</p>
-    <p>Created by Amit</p>
+    <p>Created by Amit Tyagi</p>
   </footer>
 
   <script>
@@ -263,6 +294,36 @@
     function triggerAlert() {
       alert('JavaScript execution is working correctly on this server!');
     }
+
+    // Fetch Visitor IP & Geo-Location Data
+    async function fetchVisitorIP() {
+      try {
+        const response = await fetch('https://ipapi.co/json/');
+        if (!response.ok) throw new Error('Network response was not ok');
+        const data = await response.json();
+
+        document.getElementById('ipAddress').textContent = data.ip || 'Unavailable';
+        document.getElementById('ipLocation').textContent = `${data.city || 'Unknown'}, ${data.country_name || 'Unknown'}`;
+        document.getElementById('ipOrg').textContent = data.org || 'Unknown';
+      } catch (error) {
+        document.getElementById('ipAddress').textContent = 'Blocked / Unavailable';
+        document.getElementById('ipLocation').textContent = 'N/A';
+        document.getElementById('ipOrg').textContent = 'N/A';
+      }
+
+      // Simple User Agent / Browser Detection
+      const ua = navigator.userAgent;
+      let browser = "Unknown Browser";
+      if (ua.includes("Chrome") && !ua.includes("Edg")) browser = "Google Chrome";
+      else if (ua.includes("Safari") && !ua.includes("Chrome")) browser = "Apple Safari";
+      else if (ua.includes("Edg")) browser = "Microsoft Edge";
+      else if (ua.includes("Firefox")) browser = "Mozilla Firefox";
+      
+      document.getElementById('userBrowser').textContent = browser;
+    }
+
+    // Execute IP Detection on Load
+    fetchVisitorIP();
   </script>
 </body>
 </html>
