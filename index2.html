@@ -147,23 +147,13 @@
       color: var(--text-main);
     }
 
-    .ip-details {
+    .ip-meta {
+      margin-top: 0.5rem;
+      font-size: 0.875rem;
+      color: var(--text-muted);
       display: flex;
       flex-direction: column;
-      gap: 0.4rem;
-      margin-top: 0.5rem;
-      font-size: 0.9rem;
-    }
-
-    .ip-details div {
-      display: flex;
-      justify-content: space-between;
-      color: var(--text-muted);
-    }
-
-    .ip-details span {
-      color: var(--text-main);
-      font-weight: 600;
+      gap: 0.25rem;
     }
 
     .btn-group {
@@ -217,6 +207,15 @@
 
     <section class="grid">
       <div class="card">
+        <h3>Visitor IP Address</h3>
+        <div class="value" id="user-ip" style="color: var(--accent-purple);">Loading...</div>
+        <div class="ip-meta">
+          <span id="user-location">Location: Fetching...</span>
+          <span id="user-isp">ISP: Fetching...</span>
+        </div>
+      </div>
+
+      <div class="card">
         <h3>Server Status</h3>
         <div class="value" style="color: var(--accent-green);">HTTP 200 OK</div>
       </div>
@@ -230,18 +229,6 @@
         <h3>Client Time</h3>
         <div class="value" id="clock">--:--:--</div>
       </div>
-
-      <!-- VISITOR IP BLOCK START -->
-      <div class="card">
-        <h3>Visitor Network Details</h3>
-        <div class="value" id="ipAddress" style="color: var(--accent-blue); font-size: 1.25rem;">Fetching IP...</div>
-        <div class="ip-details">
-          <div>Location: <span id="ipLocation">Detecting...</span></div>
-          <div>ISP / Org: <span id="ipOrg">Detecting...</span></div>
-          <div>Browser: <span id="userBrowser">Detecting...</span></div>
-        </div>
-      </div>
-      <!-- VISITOR IP BLOCK END -->
     </section>
 
     <section class="card">
@@ -295,34 +282,24 @@
       alert('JavaScript execution is working correctly on this server!');
     }
 
-    // Fetch Visitor IP & Geo-Location Data
+    // Fetch Visitor IP & Network Details
     async function fetchVisitorIP() {
       try {
         const response = await fetch('https://ipapi.co/json/');
-        if (!response.ok) throw new Error('Network response was not ok');
+        if (!response.ok) throw new Error('Network error');
         const data = await response.json();
-
-        document.getElementById('ipAddress').textContent = data.ip || 'Unavailable';
-        document.getElementById('ipLocation').textContent = `${data.city || 'Unknown'}, ${data.country_name || 'Unknown'}`;
-        document.getElementById('ipOrg').textContent = data.org || 'Unknown';
+        
+        document.getElementById('user-ip').textContent = data.ip || 'Unavailable';
+        document.getElementById('user-location').textContent = `Location: ${data.city || ''}, ${data.country_name || ''}`;
+        document.getElementById('user-isp').textContent = `ISP: ${data.org || 'Unknown'}`;
       } catch (error) {
-        document.getElementById('ipAddress').textContent = 'Blocked / Unavailable';
-        document.getElementById('ipLocation').textContent = 'N/A';
-        document.getElementById('ipOrg').textContent = 'N/A';
+        document.getElementById('user-ip').textContent = 'Unable to fetch';
+        document.getElementById('user-location').textContent = 'Location: Info blocked or unavailable';
+        document.getElementById('user-isp').textContent = 'ISP: Info blocked or unavailable';
       }
-
-      // Simple User Agent / Browser Detection
-      const ua = navigator.userAgent;
-      let browser = "Unknown Browser";
-      if (ua.includes("Chrome") && !ua.includes("Edg")) browser = "Google Chrome";
-      else if (ua.includes("Safari") && !ua.includes("Chrome")) browser = "Apple Safari";
-      else if (ua.includes("Edg")) browser = "Microsoft Edge";
-      else if (ua.includes("Firefox")) browser = "Mozilla Firefox";
-      
-      document.getElementById('userBrowser').textContent = browser;
     }
 
-    // Execute IP Detection on Load
+    // Run IP lookup on page load
     fetchVisitorIP();
   </script>
 </body>
